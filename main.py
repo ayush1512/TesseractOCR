@@ -2,8 +2,9 @@ import pytesseract
 import cv2
 import matplotlib.pyplot as plt
 import tkinter as tk
-from tkinter import filedialog, scrolledtext
+from tkinter import scrolledtext, filedialog
 from PIL import Image, ImageTk
+from tkinterdnd2 import DND_FILES, TkinterDnD
 
 def preprocess_image(image_path):
     img = cv2.imread(image_path)
@@ -38,12 +39,17 @@ def display_images():
     processed_panel.config(image=proc_img)
     processed_panel.image = proc_img
 
-def process_image():
-    global processed_image
+def process_image(image_path):
+    global original_image, processed_image
+    original_image = cv2.imread(image_path)
+    processed_image = preprocess_image(image_path)
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
     text = pytesseract.image_to_string(processed_image)
+    text_original = pytesseract.image_to_string(original_image)
     text_output.delete('1.0', tk.END)
-    text_output.insert(tk.END, text)
+    text_output.insert(tk.END, "The original image scanned text: \n" + text_original + "\n")
+    text_output.insert(tk.END, "The processed image scanned text: \n" + text)
+    display_images()
 
 def resize_image(image, max_size):
     h, w = image.shape[:2]
@@ -55,36 +61,52 @@ def resize_image(image, max_size):
 
 def display_images():
     global original_image, processed_image
-    
-    # Resize images
-    max_size = 300  # Maximum width or height in pixels
+    max_size = 300
     original_resized = resize_image(original_image, max_size)
     processed_resized = resize_image(processed_image, max_size)
 
-    # Display original image
     img = cv2.cvtColor(original_resized, cv2.COLOR_BGR2RGB)
     img = Image.fromarray(img)
     img = ImageTk.PhotoImage(img)
     original_panel.config(image=img)
     original_panel.image = img
 
-    # Display processed image
     proc_img = Image.fromarray(processed_resized)
     proc_img = ImageTk.PhotoImage(proc_img)
     processed_panel.config(image=proc_img)
     processed_panel.image = proc_img
     
+def drop(event):
+    file_path = event.data
+    if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp')):
+        process_image(file_path)
+    else:
+        text_output.delete('1.0', tk.END)
+        text_output.insert(tk.END, "Invalid file type. Please drop an image file.")
+
+def select_image():
+    file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.bmp")])
+    if file_path:
+        process_image(file_path)
+    
 # Create main window
-root = tk.Tk()
+root = TkinterDnD.Tk()
 root.title("Image OCR Processor")
 root.geometry("800x600")
 
 heading = tk.Label(root, text="Image OCR Processor", font=("Arial", 24))
 heading.pack(pady=10)
 
-instructions = tk.Label(root, text="Select an image to process. The OCR result will appear below.", wraplength=400)
+instructions = tk.Label(root, text="Drag and drop an image or use the select button", wraplength=400)
 instructions.pack(pady=5)
 
+# Create drag and drop box
+drop_box = tk.Label(root, text="Drop Image Here", width=40, height=4, relief="solid")
+drop_box.pack(pady=10)
+drop_box.drop_target_register(DND_FILES)
+drop_box.dnd_bind('<<Drop>>', drop)
+
+# Add select button
 select_button = tk.Button(root, text="Select Image", command=select_image, 
                           bg="blue", fg="white", font=("Arial", 12))
 select_button.pack(pady=10)
