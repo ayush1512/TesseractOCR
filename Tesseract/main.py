@@ -1,8 +1,7 @@
 import pytesseract
 import cv2
-import matplotlib.pyplot as plt
 import tkinter as tk
-from tkinter import scrolledtext, filedialog
+from tkinter import filedialog, scrolledtext
 from PIL import Image, ImageTk
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
@@ -16,39 +15,14 @@ def preprocess_image(image_path):
     dilated = cv2.dilate(opening, kernel, iterations=1)
     return dilated
 
-def select_image():
-    file_path = filedialog.askopenfilename()
-    if file_path:
-        global original_image, processed_image
-        original_image = cv2.imread(file_path)
-        processed_image = preprocess_image(file_path)
-        display_images()
-        process_image()
-
-def display_images():
-    # Display original image
-    img = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
-    img = Image.fromarray(img)
-    img = ImageTk.PhotoImage(img)
-    original_panel.config(image=img)
-    original_panel.image = img
-
-    # Display processed image
-    proc_img = Image.fromarray(processed_image)
-    proc_img = ImageTk.PhotoImage(proc_img)
-    processed_panel.config(image=proc_img)
-    processed_panel.image = proc_img
-
 def process_image(image_path):
     global original_image, processed_image
     original_image = cv2.imread(image_path)
     processed_image = preprocess_image(image_path)
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
     text = pytesseract.image_to_string(processed_image)
-    text_original = pytesseract.image_to_string(original_image)
     text_output.delete('1.0', tk.END)
-    text_output.insert(tk.END, "The original image scanned text: \n" + text_original + "\n")
-    text_output.insert(tk.END, "The processed image scanned text: \n" + text)
+    text_output.insert(tk.END, text)
     display_images()
 
 def resize_image(image, max_size):
@@ -75,9 +49,11 @@ def display_images():
     proc_img = ImageTk.PhotoImage(proc_img)
     processed_panel.config(image=proc_img)
     processed_panel.image = proc_img
-    
+
 def drop(event):
     file_path = event.data
+    if file_path.startswith("{") and file_path.endswith("}"):
+        file_path = file_path[1:-1]  # Remove curly braces if present
     if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp')):
         process_image(file_path)
     else:
@@ -88,7 +64,7 @@ def select_image():
     file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.bmp")])
     if file_path:
         process_image(file_path)
-    
+
 # Create main window
 root = TkinterDnD.Tk()
 root.title("Image OCR Processor")
