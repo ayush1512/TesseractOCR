@@ -8,7 +8,6 @@ This README provides an overview of the OCR project and guides you through the s
 - [Files](#files)
 - [Usage](#usage)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Introduction
 The TesseractOCR project utilizes Tesseract, an open-source OCR engine, to extract text from images. This README will guide you through the setup process and provide information on the project files.
@@ -59,7 +58,7 @@ This section provides information on the three main files in the project:
 
 2. `old_main.py`: This file contains the code without the gui.
 
-3. `bot.py`: This file contains the code for the implementation of bot on telegram.
+3. `bot_main.py`: This file contains the code for the implementation of bot on telegram.
 
 ## Usage
 To use the project, follow these steps:
