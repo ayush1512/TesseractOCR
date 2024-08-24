@@ -1,9 +1,19 @@
 import pytesseract
 import cv2
 import tkinter as tk
-from tkinter import filedialog, scrolledtext
+from tkinter import filedialog, scrolledtext, Canvas, Scrollbar, Frame, BOTH
 from PIL import Image, ImageTk
 from tkinterdnd2 import DND_FILES, TkinterDnD
+import os
+import sys
+
+if getattr(sys, 'frozen', False):
+    # If the application is run as a bundle, the PyInstaller bootloader
+    # extends the sys module by a flag frozen=True and sets the app 
+    # path into variable _MEIPASS'.
+    application_path = sys._MEIPASS
+else:
+    application_path = os.path.dirname(os.path.abspath(__file__))
 
 def preprocess_image(image_path):
     img = cv2.imread(image_path)
@@ -21,8 +31,11 @@ def process_image(image_path):
     processed_image = preprocess_image(image_path)
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
     text = pytesseract.image_to_string(processed_image)
+    text_original = pytesseract.image_to_string(original_image)
     text_output.delete('1.0', tk.END)
-    text_output.insert(tk.END, text)
+    text_output.insert(tk.END, "\nOriginal Image Text:\n" + text_original)
+    text_output.insert(tk.END, "\n\n---------------------------------\n\n")
+    text_output.insert(tk.END, "\nProcessed Image Text:\n" + text)
     display_images()
 
 def resize_image(image, max_size):
@@ -67,6 +80,7 @@ def select_image():
 
 # Create main window
 root = TkinterDnD.Tk()
+root.iconbitmap('icon.ico')
 root.title("Image OCR Processor")
 root.geometry("800x600")
 
