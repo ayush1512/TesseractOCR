@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import nltk
 import re
+import json
 from nltk.tokenize import word_tokenize
 from datetime import datetime
 
@@ -79,7 +80,21 @@ def parse_with_regex(text):
     
     return parsed_info
 
+def clean_date_string(date_string):
+    # Remove stray non-alphabetic characters between month abbreviations and years
+    # For example, AUG.J2025 will become AUG.2025
+    cleaned = re.sub(r'([A-Z]{3})[^A-Z0-9]?(\d{4})', r'\1.\2', date_string)
+    
+    # Additional check: if still not in proper format, remove any extra non-digit characters before the year
+    if not re.match(r'[A-Z]{3}\.?\d{4}', cleaned):
+        cleaned = re.sub(r'[^\d]', '', cleaned[-4:])
+        cleaned = f'{date_string[:3]}.{cleaned}'  # Ensure month abbreviation is correct
+        
+    print(f"Cleaned date string: '{cleaned}' from '{date_string}'")
+    return cleaned
+
 def is_date(string):
+    cleaned_string = clean_date_string(string)
     date_patterns = [
         r'\d{1,2}[-/]\d{4}',  # DD-YYYY or MM-YYYY
         r'\d{2}\d{2}\d{2,4}',  # MMDDYYYY or MMDDYY or MMYYYY
@@ -88,13 +103,13 @@ def is_date(string):
         r'[A-Z]{3}\.?\d{4}'  # MMM.YYYY or MMMYYYY
     ]
     
-    print(f"Checking if '{string}' is a date")
+    print(f"Checking if '{cleaned_string}' is a date")
     for i, pattern in enumerate(date_patterns):
-        if re.match(pattern, string):
+        if re.match(pattern, cleaned_string):
             print(f"  Matched date pattern {i+1}: {pattern}")
             return True
     
-    print(f"  '{string}' is not recognized as a date")
+    print(f"  '{cleaned_string}' is not recognized as a date")
     return False
 
 def is_price(string):
@@ -115,10 +130,30 @@ def is_price(string):
 
 def format_date(date_string):
     print(f"Formatting date: {date_string}")
-    if date_string.startswith('O'):
-        date_string = '0' + date_string[1:]
-    
-    for fmt in ('%b.%Y', '%b%Y', '%m%Y', '%m-%Y', '%d-%Y', '%Y-%m', '%Y-%d', '%m/%Y', '%d/%Y', '%Y/%m', '%Y/%d', '%m%d%Y', '%d%m%Y', '%Y%m%d', '%Y%d%m'):
+
+    # Normalize and handle unconventional date formats
+    date_string = re.sub(r'\s+', ' ', date_string)  # Remove extra spaces
+    date_string = re.sub(r'[^A-Za-z0-9. ]', '', date_string)  # Remove unexpected characters
+
+    # Check if the date string matches the MMM.YYYY format
+    if re.match(r'^[A-Z]{3}\.\d{4}$', date_string):
+        month_abbr = {
+            'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
+            'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
+            'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+        }
+        month = date_string[:3]  # Get month abbreviation
+        year = date_string[4:]    # Get year
+        if month in month_abbr:
+            formatted_date = f"{month_abbr[month]}/{year}"
+            print(f"Formatted date: {formatted_date}")
+            return formatted_date
+
+    # Attempt formatting with various date formats
+    for fmt in ('%b.%Y', '%b%Y', '%m%Y', '%m-%Y', '%d-%Y', 
+                '%Y-%m', '%Y-%d', '%m/%Y', '%d/%Y', 
+                '%Y/%m', '%Y/%d', '%m%d%Y', '%d%m%Y', 
+                '%Y%m%d', '%Y%d%m'):
         try:
             date = datetime.strptime(date_string, fmt)
             formatted_date = date.strftime('%m/%Y')
@@ -126,7 +161,7 @@ def format_date(date_string):
             return formatted_date
         except ValueError:
             continue
-    
+
     print(f"No format matched, returning original: {date_string}")
     return date_string
 
@@ -140,15 +175,16 @@ def parse_without_labels(text):
 
     for i, line in enumerate(lines):
         print(f"\nProcessing line {i}: {line}")
+        cleaned_line = clean_date_string(line)  # Clean the line before processing
         if i == 0 and 'Batch no.' not in parsed_info:
             parsed_info['Batch no.'] = line.lstrip('-')
             print(f"Batch no. set to: {parsed_info['Batch no.']}")
-        elif is_date(line):
+        elif is_date(cleaned_line):
             if 'Mfg date' not in parsed_info:
-                parsed_info['Mfg date'] = format_date(line)
+                parsed_info['Mfg date'] = format_date(cleaned_line)
                 print(f"Mfg date set to: {parsed_info['Mfg date']}")
             elif 'Expiry date' not in parsed_info:
-                parsed_info['Expiry date'] = format_date(line)
+                parsed_info['Expiry date'] = format_date(cleaned_line)
                 print(f"Expiry date set to: {parsed_info['Expiry date']}")
         else:
             price = is_price(line)
@@ -164,6 +200,7 @@ def parse_without_labels(text):
         parsed_info['MRP'] = prices[0]
 
     return parsed_info
+
 
 def main():
     # Set Tesseract path
@@ -182,9 +219,14 @@ def main():
     # Parse the extracted text
     parsed_info = parse_text(extracted_text)
     
-    print('\nParsed Information:')
-    for key, value in parsed_info.items():
-        print(f'{key}: {value}')
+    # Convert the parsed information to JSON
+    json_output = json.dumps(parsed_info, indent=4)
+    
+    # Print JSON output
+    print('\nJSON Output:')
+    print(json_output)
+
+    return json_output
 
 if __name__ == "__main__":
     main()
